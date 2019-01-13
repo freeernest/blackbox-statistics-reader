@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+
+    <bean id="vertxFactory" class="com.bigpanda.springvertx.verticlelauncher.VertxFactoryObject" init-method="initCluster" />
+
+    <bean id="springVerticleFactory" class="com.bigpanda.springvertx.verticlelauncher.SpringVerticleFactory">
+        <property name="vertx" ref="vertxFactory" />
+    </bean>
+
+    <bean id="verticlesDeployer" class="com.bigpanda.springvertx.verticlelauncher.VerticlesDeployer" init-method="deploy" destroy-method="undeploy">
+        <property name="vertx" ref="vertxFactory" />
+        <property name="deploySynchronous" value="true" />
+        <property name="verticles">
+            <list>
+                <bean class="com.bigpanda.springvertx.verticlelauncher.VerticleBean">
+                    <property name="beanName" value="spring:blackBoxKafkaMessagesStatisticsReaderVerticle"/>
+                    <property name="scale" value="true" />
+                </bean>
+                <bean class="com.bigpanda.springvertx.verticlelauncher.VerticleBean">
+                    <property name="beanName" value="spring:httpVerticle"/>
+                    <property name="scale" value="true" />
+                </bean>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="httpVerticle" class="com.bigpanda.commons.web.verticles.HttpVerticle" scope="prototype">
+        <property name="resourceHandlers">
+            <map>
+                <entry key="/statistics">
+                    <bean class="com.bigpanda.service.resourcehandler.BlackBoxKafkaMessagesStatisticsReaderResourceHandler" scope="prototype">
+                        <property name="blackBoxKafkaMessagesStatisticsReader" ref="blackBoxKafkaMessagesStatisticsReaderVertxEBProxy" />
+                    </bean>
+                </entry>
+            </map>
+        </property>
+        <property name="port" value="${http.port}" />
+        <property name="enableCors" value="true" />
+    </bean>
+
+    <bean id="blackBoxKafkaMessagesStatisticsReader" class="com.bigpanda.service.impl.BlackBoxKafkaMessagesStatisticsReaderImpl" scope="prototype">
+        <property name="vertx" ref="vertxFactory" />
+    </bean>
+
+    <bean id="blackBoxKafkaMessagesStatisticsReaderVertxEBProxy" class="com.bigpanda.statisticsreader.service.BlackBoxKafkaMessagesStatisticsReaderVertxEBProxy" scope="prototype">
+        <constructor-arg ref="vertxFactory" />
+        <constructor-arg value="#{T(com.bigpanda.statisticsreader.service.BlackBoxKafkaMessagesStatisticsReader).SERVICE_ADDRESS}" />
+    </bean>
+
+    <bean id="blackBoxKafkaMessagesStatisticsReaderVerticle" class="com.bigpanda.verticles.BlackBoxKafkaMessagesStatisticsReaderVerticle" scope="prototype">
+        <property name="blackBoxKafkaMessagesStatisticsReader" ref="blackBoxKafkaMessagesStatisticsReader" />
+    </bean>
+
+
+</beans>
